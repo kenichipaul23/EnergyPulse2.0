@@ -9,22 +9,44 @@ UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 def read_csv_bytes(content: bytes):
-    try: df = pd.read_csv(pd.io.common.BytesIO(content))
-    except Exception as e: raise ValueError(f"Cannot read CSV: {e}")
-    if df.empty: raise ValueError("CSV has no data rows.")
+    try: 
+        df = pd.read_csv(pd.io.common.BytesIO(content))
+    except Exception as e: 
+        raise ValueError(f"Cannot read CSV: {e}")
+    if df.empty: 
+        raise ValueError("CSV has no data rows.")
     return df
 
-def process_csv(content: bytes):
-    df=read_csv_bytes(content); filename=f"{uuid.uuid4().hex}.csv"
-    (UPLOAD_DIR/filename).write_bytes(content)
-    return {"filename":filename,"rows":len(df),"columns":list(map(str,df.columns)),
-            "missing_values":{str(c):int(v) for c,v in df.isna().sum().items()},
-            "preview":json.loads(df.head(5).to_json(orient="records",date_format="iso"))}
+def process_csv(content: bytes, original_filename: str):
+    # Sanitize and keep the original filename uploaded by the user
+    safe_name = Path(original_filename).name
+    if not safe_name.lower().endswith(".csv"):
+        raise ValueError("Upload a valid .csv file.")
+    
+    # If a file with the exact same name already exists, append a short hash to prevent overwriting
+    target_path = UPLOAD_DIR / safe_name
+    if target_path.exists():
+        stem = target_path.stem
+        safe_name = f"{stem}_{uuid.uuid4().hex[:6]}.csv"
+        target_path = UPLOAD_DIR / safe_name
+
+    df = read_csv_bytes(content)
+    target_path.write_bytes(content)
+
+    return {
+        "filename": safe_name,
+        "rows": len(df),
+        "columns": list(map(str, df.columns)),
+        "missing_values": {str(c): int(v) for c, v in df.isna().sum().items()},
+        "preview": json.loads(df.head(5).to_json(orient="records", date_format="iso"))
+    }
 
 def dataset_path(filename):
-    if not filename or Path(filename).name!=filename or not filename.endswith(".csv"): raise ValueError("Invalid dataset filename")
-    p=(UPLOAD_DIR/filename).resolve()
-    if p.parent!=UPLOAD_DIR.resolve() or not p.is_file(): raise ValueError("Dataset not found")
+    if not filename or Path(filename).name != filename or not filename.endswith(".csv"): 
+        raise ValueError("Invalid dataset filename")
+    p = (UPLOAD_DIR / filename).resolve()
+    if p.parent != UPLOAD_DIR.resolve() or not p.is_file(): 
+        raise ValueError("Dataset not found")
     return p
 
 def analytics(filename):
@@ -219,17 +241,24 @@ def analytics(filename):
     }
 
 @router.post("/upload")
-async def upload_dataset(file:UploadFile=File(...)):
-    if not file.filename.lower().endswith(".csv"): raise HTTPException(400,"Upload a CSV file.")
-    content=await file.read()
-    if len(content)>20*1024*1024: raise HTTPException(413,"Maximum upload size is 20 MB.")
-    try: return {"message":"Dataset uploaded successfully","original_filename":file.filename,"dataset":process_csv(content)}
-    except ValueError as e: raise HTTPException(400,str(e))
+async def upload_dataset(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(400, "Upload a CSV file.")
+    content = await file.read()
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(413, "Maximum upload size is 20 MB.")
+    try:
+        result = process_csv(content, file.filename)
+        return {"message": "Dataset uploaded successfully", "original_filename": file.filename, "dataset": result}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 @router.get("/{filename}/analytics")
-def get_analytics(filename:str):
-    try:return analytics(filename)
-    except ValueError as e:raise HTTPException(404,str(e))
+def get_analytics(filename: str):
+    try:
+        return analytics(filename)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
 
 @router.delete("/{filename}")
 def delete_dataset(filename: str):
@@ -244,9 +273,11 @@ def delete_dataset(filename: str):
 
 @router.get("")
 def list_datasets():
-    result=[]
-    for p in sorted(UPLOAD_DIR.glob("*.csv"),key=lambda x:x.stat().st_mtime,reverse=True):
+    result = []
+    for p in sorted(UPLOAD_DIR.glob("*.csv"), key=lambda x: x.stat().st_mtime, reverse=True):
         try:
-            df=pd.read_csv(p,nrows=2); result.append({"filename":p.name,"columns":list(df.columns)})
-        except: pass
+            df = pd.read_csv(p, nrows=2)
+            result.append({"filename": p.name, "columns": list(df.columns)})
+        except:
+            pass
     return result

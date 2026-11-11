@@ -686,69 +686,6 @@ export default function SeasonalForecast({
           </p>
         </div>
       </section>
-
-      <hr style={{ border: '0', height: '1px', background: '#CBD5E1', margin: '0 10px' }} />
-
-      {/* MODULE 4: LINEAR REGRESSION CLASS WORKSHEET */}
-      <section className="panel" style={{ borderTop: '4px solid #8B5CF6' }}>
-        <div className="panel-head">
-          <div>
-            <span className="tag" style={{ marginBottom: '8px', display: 'inline-block' }}>MODULE 4 · ACADEMIC COMPUTATION WORKSHEET</span>
-            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A' }}>Linear regression (class method) — all monthly points</h2>
-            <p style={{ fontSize: '14px', color: '#475569', marginTop: '4px' }}>
-              y = dependent variable (kWh) · x = independent variable (month index) · a = intercept · b = slope. Computed using all monthly totals.
-            </p>
-          </div>
-        </div>
-        {regression ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="metric-row" style={{ background: '#F1F5F9', padding: '16px', borderRadius: '12px', display: 'flex', flexWrap: 'wrap', gap: '20px', fontSize: '14px' }}>
-              <span>n: <b style={{ color: '#0F172A' }}>{regression.n}</b></span>
-              <span>x̄: <b style={{ color: '#0F172A' }}>{num(regression.x_mean)}</b></span>
-              <span>ȳ: <b style={{ color: '#0F172A' }}>{num(regression.y_mean)}</b></span>
-              <span>Slope b: <b style={{ color: '#2563EB' }}>{num(regression.b)}</b></span>
-              <span>Intercept a: <b style={{ color: '#2563EB' }}>{num(regression.a)}</b></span>
-              <span>R²: <b style={{ color: '#10B981' }}>{regression.r2.toFixed(3)}</b></span>
-            </div>
-            <div className="formula" style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '16px 20px', borderRadius: '12px', fontSize: '14px', lineHeight: '1.7', color: '#1E3A8A' }}>
-              <b>Formulas &amp; Computed Values:</b><br />
-              b = &Sigma;(x &minus; x&#772;)(y &minus; y&#772;) / &Sigma;(x &minus; x&#772;)&sup2; = <b>{num(regression.b)}</b><br />
-              a = y&#772; &minus; b &middot; x&#772; = <b>{num(regression.a)}</b><br />
-              Predicted y = a + b &middot; x
-            </div>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    {['Month', 'x', 'y', 'x−x̄', 'y−ȳ', '(x−x̄)(y−ȳ)', '(x−x̄)²', 'Predicted y'].map(h => (
-                      <th key={h} style={{ fontSize: '13px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {regression.rows.map(r => (
-                    <tr key={r.x}>
-                      <td style={{ fontWeight: 600 }}>{r.label}</td>
-                      <td>{r.x}</td>
-                      <td>{num(r.y)}</td>
-                      <td>{num(r.dx)}</td>
-                      <td>{num(r.dy)}</td>
-                      <td>{num(r.product)}</td>
-                      <td>{num(r.square)}</td>
-                      <td style={{ fontWeight: 700, color: '#2563EB' }}>{num(r.predicted)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="explain" style={{ fontSize: '14px', lineHeight: '1.6' }}>
-              {regression.note} A straight line cannot capture distinct seasonal peaks (such as hot summer months vs. year-end humidity). Use the green seasonal forecast model for operational facility planning, and use this table for academic coursework requirements.
-            </p>
-          </div>
-        ) : (
-          <p className="muted">At least two monthly totals are required.</p>
-        )}
-      </section>
     </div>
   )
 }

@@ -21,6 +21,9 @@ export default function DatasetUpload({
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [dragActive, setDragActive] = useState(false)
+  
+  // Custom Delete Modal State
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -61,9 +64,10 @@ export default function DatasetUpload({
     }
   }
 
-  const handleDelete = async (filename: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!window.confirm(`Are you sure you want to delete "${filename}"?`)) return
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    const filename = deleteTarget
+    setDeleteTarget(null)
 
     setError('')
     setSuccessMsg('')
@@ -116,9 +120,9 @@ export default function DatasetUpload({
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Upload failed')
 
-      setSuccessMsg(`Successfully uploaded "${file.name}"!`)
+      setSuccessMsg(`Successfully uploaded "${file.name}" to repository!`)
       await refreshList()
-      onUploaded(data.dataset.filename)
+      // NOTE: Removed automatic triggering of `onUploaded` so user can choose when to load.
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An error occurred during upload.'
       setError(message)
@@ -149,14 +153,15 @@ export default function DatasetUpload({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', position: 'relative' }}>
+      {/* SECTION 1: UPLOAD & INSTRUCTIONS */}
       <section className="panel" style={{ borderTop: '4px solid #2563EB' }}>
         <div className="panel-head">
           <div>
             <span className="tag" style={{ marginBottom: '8px', display: 'inline-block' }}>DATA MANAGEMENT · INGESTION</span>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A' }}>Dataset Upload &amp; Instructions</h2>
             <p style={{ fontSize: '14px', color: '#475569', marginTop: '4px' }}>
-              Import your electricity consumption CSV files. Files are safely stored in your repository for multi-dataset analysis.
+              Import your electricity consumption CSV files. Files are saved in your repository and loaded manually when ready.
             </p>
           </div>
         </div>
@@ -164,9 +169,9 @@ export default function DatasetUpload({
         <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '16px 20px', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', color: '#1E3A8A', lineHeight: '1.6' }}>
           📌 <b>Instructions for CSV Upload:</b>
           <ul style={{ margin: '6px 0 0 20px', padding: 0 }}>
-            <li>Ensure your CSV file contains a timestamp column (<code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>timestamp</code>, <code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>date</code>) and an energy consumption column (<code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>energy_kwh</code>, <code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>kwh</code>).</li>
+            <li>Ensure your CSV file contains a timestamp column (<code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>timestamp</code>) and an energy consumption column (<code style={{ background: '#DBEAFE', padding: '2px 4px', borderRadius: '4px' }}>energy_kwh</code>).</li>
             <li>Maximum supported file size is <b>20 MB</b>.</li>
-            <li>You can upload multiple CSV files; they will all appear in your Saved Datasets Repository table below for instant switching or deletion.</li>
+            <li>Uploaded files populate the repository table below. Click <b>Load Dataset</b> whenever you want to inspect analytics.</li>
           </ul>
         </div>
 
@@ -232,6 +237,7 @@ export default function DatasetUpload({
         )}
       </section>
 
+      {/* SECTION 2: SAVED DATASETS REPOSITORY TABLE */}
       <section className="panel" style={{ borderTop: '4px solid #10B981' }}>
         <div className="panel-head">
           <div>
@@ -305,7 +311,7 @@ export default function DatasetUpload({
                               boxShadow: '0 1px 3px rgba(239,68,68,0.2)'
                             }}
                             title="Delete dataset"
-                            onClick={(e) => handleDelete(item.filename, e)}
+                            onClick={() => setDeleteTarget(item.filename)}
                           >
                             🗑️ Delete
                           </button>
@@ -323,6 +329,80 @@ export default function DatasetUpload({
           </div>
         )}
       </section>
+
+      {/* CUSTOM MODAL DIALOG FOR DELETE CONFIRMATION */}
+      {deleteTarget && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(3px)'
+        }}>
+          <div style={{
+            background: '#1E1E24',
+            color: '#F8FAFC',
+            padding: '28px 32px',
+            borderRadius: '16px',
+            width: '420px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+            border: '1px solid #334155'
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px' }}>
+              localhost:5173 says
+            </h3>
+            <p style={{ fontSize: '15px', lineHeight: '1.5', color: '#F1F5F9', marginBottom: '24px' }}>
+              Are you sure you want to delete <br/>
+              <code style={{ background: '#334155', padding: '2px 6px', borderRadius: '4px', color: '#38BDF8', wordBreak: 'break-all' }}>
+                "{deleteTarget}"
+              </code>?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  background: '#475569',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '24px',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                style={{
+                  background: '#FCA5A5',
+                  color: '#7F1D1D',
+                  border: 'none',
+                  padding: '10px 24px',
+                  borderRadius: '24px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 15px rgba(252, 165, 165, 0.4)',
+                  transition: 'background 0.2s'
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
